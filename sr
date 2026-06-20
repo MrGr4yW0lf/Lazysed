@@ -1,0 +1,184 @@
+#!/usr/bin/env sh
+
+usage() {
+cat <<EOF
+LazySed
+
+Usage:
+
+  sr OLD NEW FILE
+      Replace text
+
+  sr /OLD TEXT/ /NEW TEXT/ FILE
+      Replace text containing spaces
+
+  sr -e FILE
+      Remove empty lines
+
+  sr -l4 FILE
+  sr -L4 FILE
+  sr -4 FILE
+      Remove single line
+
+  sr -l1 to l3 FILE
+  sr -L1 to L3 FILE
+  sr -1 to 3 FILE
+      Remove line range
+
+  sr -l1 l3 FILE
+  sr -L1 L3 FILE
+  sr -1 3 FILE
+      Remove specific lines
+EOF
+exit 1
+}
+
+sedi() {
+    if sed --version >/dev/null 2>&1; then
+        sed -i "$@"
+    else
+        sed -i '' "$@"
+    fi
+}
+
+[ $# -eq 0 ] && usage
+
+
+if [ "$1" = "-e" ] || [ "$1" = "-E" ]; then
+
+    [ -f "$2" ] || {
+        echo "File not found: $2"
+        exit 1
+    }
+
+    sedi '/^[[:space:]]*$/d' "$2"
+    exit 0
+fi
+
+
+case "$1:$2:$3" in
+
+    -[lL]*:to:[lL]*|-*:to:*)
+
+        start=$(printf "%s" "$1" | sed 's/^-[lL]*//')
+        end=$(printf "%s" "$3" | sed 's/^[lL]*//')
+
+        case "$start$end" in
+            *[!0-9]*)
+                ;;
+            *)
+
+                [ -f "$4" ] || {
+                    echo "File not found: $4"
+                    exit 1
+                }
+
+                sedi "${start},${end}d" "$4"
+
+                exit 0
+                ;;
+        esac
+        ;;
+esac
+
+
+case "$1:$2" in
+
+    -[lL]*:[lL]*|-*:*)
+
+        l1=$(printf "%s" "$1" | sed 's/^-[lL]*//')
+        l2=$(printf "%s" "$2" | sed 's/^[lL]*//')
+
+        case "$l1$l2" in
+            *[!0-9]*)
+                ;;
+            *)
+
+                [ -f "$3" ] || {
+                    echo "File not found: $3"
+                    exit 1
+                }
+
+                tmp=$(mktemp) || exit 1
+
+                awk -v a="$l1" -v b="$l2" '
+                    NR != a && NR != b
+                ' "$3" > "$tmp"
+
+                mv "$tmp" "$3"
+
+                exit 0
+                ;;
+        esac
+        ;;
+esac
+
+
+case "$1" in
+
+    -[lL][0-9]*)
+
+        num=$(printf "%s" "$1" | sed 's/^-[lL]//')
+        ;;
+
+    -[0-9]*)
+
+        num=$(printf "%s" "$1" | sed 's/^-//')
+        ;;
+
+    *)
+
+        num=""
+        ;;
+esac
+
+if [ -n "$num" ]; then
+
+    [ -f "$2" ] || {
+        echo "File not found: $2"
+        exit 1
+    }
+
+    sedi "${num}d" "$2"
+
+    exit 0
+fi
+
+
+case "$1:$2" in
+
+    /*/:/*/)
+
+        old=$(printf "%s" "$1" | sed 's#^/##;s#/$##')
+        new=$(printf "%s" "$2" | sed 's#^/##;s#/$##')
+
+        [ -f "$3" ] || {
+            echo "File not found: $3"
+            exit 1
+        }
+
+        old_esc=$(printf '%s\n' "$old" | sed 's/[\/&]/\\&/g')
+        new_esc=$(printf '%s\n' "$new" | sed 's/[\/&]/\\&/g')
+
+        sedi "s|$old_esc|$new_esc|g" "$3"
+
+        exit 0
+        ;;
+esac
+
+if [ $# -eq 3 ]; then
+
+    [ -f "$3" ] || {
+        echo "File not found: $3"
+        exit 1
+    }
+
+    old_esc=$(printf '%s\n' "$1" | sed 's/[\/&]/\\&/g')
+    new_esc=$(printf '%s\n' "$2" | sed 's/[\/&]/\\&/g')
+
+    sedi "s|$old_esc|$new_esc|g" "$3"
+
+    exit 0
+fi
+
+usage
