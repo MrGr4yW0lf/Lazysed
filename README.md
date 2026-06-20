@@ -28,7 +28,10 @@ sr -e Test.txt
 Remove line range
 
 sr -l1 to l3 Test.txt
+sr -1 to 3 Test.txt
 
 Remove specific lines
 
 sr -l1 l3 Test.txt
+sr -1 3 Test.txt
+you can use withou -l , if you are so lazy.
