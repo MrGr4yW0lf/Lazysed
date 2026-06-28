@@ -11,6 +11,7 @@ chmod +x install.sh
 
 ./install.sh
 ## Now you can use this script easily with sr
+sr = sed remove and sed replace
 ## Examples
 
 Replace text
